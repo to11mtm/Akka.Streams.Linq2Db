@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Akka.Streams.Dsl;
 
 namespace Reactive.Streams.Helpers.DSL
 {

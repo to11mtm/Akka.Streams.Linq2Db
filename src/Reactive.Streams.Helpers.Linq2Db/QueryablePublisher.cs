@@ -26,7 +26,6 @@ namespace Reactive.Streams.Helpers.DSL
                     new Linq2DbFuncLifetimeProvider<T, TDc>(
                         connFact, producer)
                 ), schedulerFactory);
-            //new AsyncPublisherContext<T, TDc>(connFact, producer));
         }
     }
 }
