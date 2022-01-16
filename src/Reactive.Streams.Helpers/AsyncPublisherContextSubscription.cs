@@ -1,10 +1,13 @@
 using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Akka.Streams.Dsl;
 using Reactive.Streams;
 
-namespace Akka.Linq2Db.Sandbox
+namespace Reactive.Streams.Helpers
 {
+    
     public class AsyncPublisherContextSubscription<T> : ISubscription
     {
         private readonly BasePublisherContext<T> _obj;
@@ -18,16 +21,16 @@ namespace Akka.Linq2Db.Sandbox
             _scheduler = scheduler ?? TaskScheduler.Default;
         }
 
-        public AsyncPublisherContextSubscription(BasePublisherContext<T> obj,
-            ISubscriber<T> subscriber) : this(obj, subscriber, null)
-        {
-            
-        }
-
         private long _pendingReqs;
         
         private int taskState = 0;
         private bool cancelled = false;
+        /// <summary>
+        /// need to track Completion State
+        /// Since subsequent Requests should not
+        /// be ignored after complete.
+        /// </summary>
+        private bool completed = false;
         private const int TaskStopped = 0;
         private const int TaskRunning = 1 << 1;
         private void TryCloseTaskRead()
@@ -59,39 +62,53 @@ namespace Akka.Linq2Db.Sandbox
 
         private void StartRequestReader()
         {
-            Task.Factory.StartNew(async () =>
+            if (completed == false)
             {
-                var currReqs = Interlocked.Exchange(ref _pendingReqs, 0);
-                do
-                {
-                    try
+
+                Task.Factory.StartNew(async () =>
                     {
-                        for (long i = 0; i < currReqs; i++)
+                        var currReqs =
+                            Interlocked.Exchange(ref _pendingReqs, 0);
+                        do
                         {
-                            var next = await _obj.ReadNext();
-                            if (next.IsEmpty)
+                            try
                             {
-                                _sub.OnComplete();
+                                for (long i = 0; i < currReqs; i++)
+                                {
+                                    var nextRead = await _obj.ReadNext();
+                                    if (nextRead.IsEmpty)
+                                    {
+                                        
+                                        completed = true;
+                                        _sub.OnComplete();
+                                    }
+                                    else
+                                    {
+                                        _sub.OnNext(nextRead.Value.Get());
+                                    }
+                                }
                             }
-                            else
+                            catch (Exception e)
                             {
-                                _sub.OnNext(next.Value.Get());
+                                
+                                completed = true;
+                                _sub.OnError(e);
                             }
-                        }
-                    }
-                    catch (Exception e)
-                    {
-                        _sub.OnError(e);
-                    }
 
-                    currReqs = Interlocked.Exchange(ref _pendingReqs, 0);
-                } while (currReqs > 0 && Volatile.Read(ref cancelled)==false);
+                            currReqs =
+                                Interlocked.Exchange(ref _pendingReqs, 0);
+                        } while (completed == false && currReqs > 0 &&
+                                 Volatile.Read(ref cancelled) == false);
 
-                TryCloseTaskRead();
-            });
+                        TryCloseTaskRead();
+                    }, CancellationToken.None,
+                    TaskCreationOptions.RunContinuationsAsynchronously,
+                    _scheduler);
+
+            }
         }
 
-        
+
 
         public void Cancel()
         {

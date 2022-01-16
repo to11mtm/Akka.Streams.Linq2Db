@@ -4,7 +4,7 @@ using Akka.Util;
 using Google.Protobuf.WellKnownTypes;
 using Reactive.Streams;
 
-namespace Akka.Linq2Db.Sandbox
+namespace Reactive.Streams.Helpers
 {
 
     public abstract class BasePublisherContext<T>

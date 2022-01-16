@@ -4,32 +4,30 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Akka.Util;
-using LinqToDB.Data;
 
-namespace Akka.Linq2Db.Sandbox
+namespace Reactive.Streams.Helpers
 {
-    public class PublisherContext<T, TDc> : BasePublisherContext<T>, IDisposable where TDc:DataConnection
+    public class EnumerablePublisherContext<T> : BasePublisherContext<T>, IDisposable
     {
-        private readonly Func<TDc, IQueryable<T>> _queryFunc;
-        private readonly Func<TDc> _dcFunc;
-        private TDc _conn;
+        private readonly IContextEnumerableProvider<T> _lifetimeProvider;
+        private IEnumerableContextLifetime<T>? _conn;
         private IEnumerator<T> _enumerator;
         private bool isInit = false;
         private readonly CancellationTokenSource _cts;
+        private bool isCompleted = false;
 
-        public PublisherContext(Func<TDc> dcFunc,
-            Func<TDc, IQueryable<T>> queryFunc)
+        public EnumerablePublisherContext(IContextEnumerableProvider<T> lifetimeProvider)
         {
-            _dcFunc = dcFunc;
-            _queryFunc = queryFunc;
+            _lifetimeProvider = lifetimeProvider;
             _cts = new CancellationTokenSource();
         }
 
         public void init()
         {
-            _conn = _dcFunc();
-            _enumerator = _queryFunc(_conn).GetEnumerator();
+            _conn = _lifetimeProvider.GetLifetime();
+            _enumerator = _conn.GetEnumerable().GetEnumerator();
             isInit = true;
+            isCompleted = false;
         }
 
         public override ValueTask<Option<Try<T>>> ReadNext()
@@ -48,6 +46,7 @@ namespace Akka.Linq2Db.Sandbox
                 else
                 {
                     CloseReader();
+                    isCompleted = true;
                     return new ValueTask<Option<Try<T>>>(Option<Try<T>>.None);
                 }
             }
@@ -57,11 +56,10 @@ namespace Akka.Linq2Db.Sandbox
             }
         }
 
-        public override ValueTask CloseReader()
+        public override async ValueTask CloseReader()
         {
-            _enumerator.Dispose();
-            _conn.Dispose();
-            return new ValueTask();
+            _enumerator?.Dispose();
+            if (_conn != null) await _conn.DisposeAsync();
         }
 
         public override void CancelToken()
@@ -71,8 +69,11 @@ namespace Akka.Linq2Db.Sandbox
 
         public void Dispose()
         {
-            CloseReader();
-            _cts.Dispose();
+            if (isCompleted == false)
+            {
+                CloseReader().ConfigureAwait(false).GetAwaiter().GetResult();
+            }
+            _cts.Dispose();    
         }
     }
 }

@@ -1,41 +1,38 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
-using System.Linq;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using Akka.Util;
-using LinqToDB;
-using LinqToDB.Data;
 
-namespace Akka.Linq2Db.Sandbox
+namespace Reactive.Streams.Helpers
 {
-    public class AsyncPublisherContext<T, TDc> : BasePublisherContext<T>, IAsyncDisposable where TDc:DataConnection
+    public class AsyncEnumerablePublisherContext<T> : BasePublisherContext<T>, IAsyncDisposable
     {
-        private readonly Func<TDc, IQueryable<T>> _queryFunc;
-        private readonly Func<TDc> _dcFunc;
-        private TDc _conn;
-        private IAsyncEnumerator<T> _enumerator;
+        private readonly IContextAsyncEnumerableProvider<T> _lifetimeProvider; 
+        private IAsyncEnumerableContextLifetime<T>? _conn;
+        private IAsyncEnumerator<T>? _enumerator;
         private CancellationTokenSource _cts;
         private bool isInit;
+        private bool isCompleted;
+
         public override void CancelToken()
         {
             _cts.Cancel();
         }
 
-        public AsyncPublisherContext(Func<TDc> dcFunc,
-            Func<TDc, IQueryable<T>> queryFunc)
+        public AsyncEnumerablePublisherContext(IContextAsyncEnumerableProvider<T> lifetimeProvider)
         {
-            _dcFunc = dcFunc;
-            _queryFunc = queryFunc;
+            _lifetimeProvider = lifetimeProvider;
             _cts = new CancellationTokenSource();
         }
 
         public void init()
         {
-            _conn = _dcFunc();
-            _enumerator = _queryFunc(_conn).AsAsyncEnumerable()
-                .GetAsyncEnumerator(_cts.Token);
+            _conn = _lifetimeProvider.GetAsyncLifetime();
+            _enumerator = _conn.GetAsyncEnumerable().GetAsyncEnumerator();
             isInit = true;
+            isCompleted = false;
         }
 
         public override async ValueTask<Option<Try<T>>> ReadNext()
@@ -47,6 +44,8 @@ namespace Akka.Linq2Db.Sandbox
                 {
                     init();
                 }
+
+                Debug.Assert(_enumerator != null, nameof(_enumerator) + " != null");
                 if (await _enumerator.MoveNextAsync())
                 {
                     return new Option<Try<T>>(_enumerator.Current);
@@ -54,6 +53,7 @@ namespace Akka.Linq2Db.Sandbox
                 else
                 {
                     await CloseReader();
+                    isCompleted = true;
                     return Option<Try<T>>.None;
                 }
             }
@@ -65,13 +65,17 @@ namespace Akka.Linq2Db.Sandbox
 
         public override async ValueTask CloseReader()
         {
-            await _enumerator.DisposeAsync();
-            _conn.Dispose();
+            if (_enumerator != null) await _enumerator.DisposeAsync();
+            if (_conn != null) await _conn.DisposeAsync();
         }
 
         public async ValueTask DisposeAsync()
         {
-            await CloseReader();
+            if (isCompleted == false)
+            {
+                await CloseReader();    
+            }
+            _cts.Dispose();
         }
     }
 }

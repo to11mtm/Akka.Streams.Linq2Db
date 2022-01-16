@@ -1,4 +1,4 @@
-namespace Akka.Linq2Db.Sandbox
+namespace Reactive.Streams.Helpers
 {
     public class StrawMan
     {

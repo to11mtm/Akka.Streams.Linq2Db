@@ -1,6 +1,8 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Akka.Linq2Db.Sandbox", "Akka.Linq2Db.Sandbox\Akka.Linq2Db.Sandbox.csproj", "{1F06F9B7-F597-4F08-8A9A-F55BB3FDBD77}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Reactive.Streams.Helpers", "Reactive.Streams.Helpers\Reactive.Streams.Helpers.csproj", "{1F06F9B7-F597-4F08-8A9A-F55BB3FDBD77}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Reactive.Streams.Helpers.Linq2Db", "Reactive.Streams.Helpers.Linq2Db\Reactive.Streams.Helpers.Linq2Db.csproj", "{254A0E27-276C-49D3-A9A9-F9932F06F7E7}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -12,5 +14,9 @@ Global
 		{1F06F9B7-F597-4F08-8A9A-F55BB3FDBD77}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{1F06F9B7-F597-4F08-8A9A-F55BB3FDBD77}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{1F06F9B7-F597-4F08-8A9A-F55BB3FDBD77}.Release|Any CPU.Build.0 = Release|Any CPU
+		{254A0E27-276C-49D3-A9A9-F9932F06F7E7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{254A0E27-276C-49D3-A9A9-F9932F06F7E7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{254A0E27-276C-49D3-A9A9-F9932F06F7E7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{254A0E27-276C-49D3-A9A9-F9932F06F7E7}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
